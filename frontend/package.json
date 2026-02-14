@@ -1,0 +1,92 @@
+{
+  "name": "vincent-copilot",
+  "displayName": "Vincent Copilot",
+  "description": "AI-powered code completion with real-time inline suggestions for 25+ languages.",
+  "version": "1.0.0",
+  "publisher": "vincentchauau",
+  "engines": {
+    "vscode": ">=1.70.0"
+  },
+  "categories": [
+    "Programming Languages",
+    "Machine Learning",
+    "Snippets"
+  ],
+  "keywords": [
+    "ai",
+    "copilot",
+    "code completion",
+    "autocomplete",
+    "intellisense"
+  ],
+  "activationEvents": [
+    "onStartupFinished"
+  ],
+  "main": "./out/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "vincentCopilot.complete",
+        "title": "Vincent Copilot: Trigger Completion",
+        "category": "Vincent"
+      }
+    ],
+    "keybindings": [
+      {
+        "command": "vincentCopilot.complete",
+        "key": "ctrl+shift+space",
+        "mac": "cmd+shift+space",
+        "when": "editorTextFocus"
+      }
+    ],
+    "configuration": {
+      "title": "Vincent Copilot",
+      "properties": {
+        "vincentCopilot.apiUrl": {
+          "type": "string",
+          "default": "http://localhost:5000",
+          "description": "Vincent Copilot API server URL"
+        },
+        "vincentCopilot.enabled": {
+          "type": "boolean",
+          "default": true,
+          "description": "Enable/disable Vincent Copilot inline suggestions"
+        },
+        "vincentCopilot.delay": {
+          "type": "number",
+          "default": 300,
+          "description": "Delay (in ms) before triggering inline suggestions"
+        },
+        "vincentCopilot.maxTokens": {
+          "type": "number",
+          "default": 50,
+          "description": "Maximum tokens to generate for inline completions"
+        }
+      }
+    }
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "lint": "eslint src --ext ts"
+  },
+  "devDependencies": {
+    "@types/node": "^18.0.0",
+    "@types/node-fetch": "^2.6.13",
+    "@types/vscode": "^1.70.0",
+    "@typescript-eslint/eslint-plugin": "^5.30.0",
+    "@typescript-eslint/parser": "^5.30.0",
+    "eslint": "^8.18.0",
+    "typescript": "^5.9.3"
+  },
+  "dependencies": {
+    "node-fetch": "^2.6.7"
+  },
+  "icon": "extension/icon.jpg",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/vincentchau/VincentCopilot"
+  },
+  "license": "MIT"
+}

@@ -1,0 +1,1475 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Vincent Copilot Assistant</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: #0d1117;
+            color: #c9d1d9;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .header {
+            background: #161b22;
+            padding: 1rem 2rem;
+            border-bottom: 1px solid #30363d;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        
+        .header h1 {
+            font-size: 1.5rem;
+            color: #58a6ff;
+        }
+        
+        .tabs {
+            display: flex;
+            gap: 1rem;
+        }
+        
+        .tab {
+            padding: 0.5rem 1rem;
+            background: transparent;
+            border: 1px solid #30363d;
+            color: #8b949e;
+            cursor: pointer;
+            border-radius: 6px;
+            transition: all 0.2s;
+        }
+        
+        .tab.active {
+            background: #238636;
+            color: white;
+            border-color: #238636;
+        }
+        
+        .tab:hover {
+            border-color: #58a6ff;
+        }
+        
+        .container {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            max-width: 1200px;
+            width: 100%;
+            margin: 0 auto;
+            padding: 2rem;
+            overflow: hidden;
+        }
+        
+        .panel {
+            display: none;
+            flex-direction: column;
+            height: 100%;
+        }
+        
+        .panel.active {
+            display: flex;
+        }
+        
+        .messages {
+            flex: 1;
+            overflow-y: auto;
+            padding: 1rem;
+            background: #0d1117;
+            border: 1px solid #30363d;
+            border-radius: 6px;
+            margin-bottom: 1rem;
+        }
+        
+        .message {
+            margin-bottom: 1rem;
+            padding: 1rem;
+            border-radius: 6px;
+            max-width: 80%;
+        }
+        
+        .message.user {
+            background: #1f6feb;
+            margin-left: auto;
+            text-align: right;
+        }
+        
+        .message.assistant {
+            background: #21262d;
+            margin-right: auto;
+        }
+        
+        .message pre {
+            background: #161b22;
+            padding: 1rem;
+            border-radius: 4px;
+            overflow-x: auto;
+            margin-top: 0.5rem;
+        }
+        
+        .message code {
+            font-family: 'Courier New', monospace;
+            font-size: 0.9rem;
+        }
+        
+        .input-area {
+            display: flex;
+            gap: 0.5rem;
+        }
+        
+        .input-area textarea {
+            flex: 1;
+            padding: 1rem;
+            background: #0d1117;
+            border: 1px solid #30363d;
+            color: #c9d1d9;
+            border-radius: 6px;
+            font-family: inherit;
+            font-size: 1rem;
+            resize: vertical;
+            min-height: 60px;
+        }
+        
+        .input-area textarea:focus {
+            outline: none;
+            border-color: #58a6ff;
+        }
+        
+        .input-area button {
+            padding: 0.75rem 2rem;
+            background: #238636;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: background 0.2s;
+        }
+        
+        .input-area button:hover {
+            background: #2ea043;
+        }
+        
+        .input-area button:disabled {
+            background: #21262d;
+            color: #8b949e;
+            cursor: not-allowed;
+        }
+        
+        .code-editor {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+        
+        .code-editor textarea {
+            flex: 1;
+            padding: 1rem;
+            background: #0d1117;
+            border: 1px solid #30363d;
+            color: #c9d1d9;
+            border-radius: 6px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.9rem;
+            resize: none;
+        }
+        
+        .code-editor textarea:focus {
+            outline: none;
+            border-color: #58a6ff;
+        }
+        
+        .actions {
+            display: flex;
+            gap: 0.5rem;
+            align-items: center;
+        }
+        
+        .actions select {
+            padding: 0.5rem;
+            background: #0d1117;
+            border: 1px solid #30363d;
+            color: #c9d1d9;
+            border-radius: 6px;
+        }
+        
+        .loading {
+            display: none;
+            color: #8b949e;
+            font-style: italic;
+        }
+        
+        .loading.active {
+            display: block;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>🌟 Vincent Copilot Assistant</h1>
+        <div class="tabs">
+            <button class="tab active" onclick="switchTab('chat')">💬 Chat</button>
+            <button class="tab" onclick="switchTab('complete')">✨ Complete</button>
+            <button class="tab" onclick="switchTab('explain')">📖 Explain</button>
+            <button class="tab" onclick="switchTab('refactor')">🔧 Refactor</button>
+            <button class="tab" onclick="switchTab('tests')">🧪 Gen Tests</button>
+            <button class="tab" onclick="switchTab('bugfix')">🐛 Fix Bugs</button>
+            <button class="tab" onclick="switchTab('advanced')">⚙️ Advanced</button>
+            <button class="tab" onclick="switchTab('github')">🐙 GitHub</button>
+        </div>
+    </div>
+    
+    <div class="container">
+        <!-- Chat Panel -->
+        <div id="chat-panel" class="panel active">
+            <div class="messages" id="chat-messages"></div>
+            <div class="input-area">
+                <textarea id="chat-input" placeholder="Ask me anything about coding..."></textarea>
+                <button onclick="sendChatMessage()" id="chat-btn">Send</button>
+            </div>
+        </div>
+        
+        <!-- Complete Panel -->
+        <div id="complete-panel" class="panel">
+            <div class="code-editor">
+                <div class="actions">
+                    <label>Language:</label>
+                    <select id="complete-language">
+                        <option value="python">Python</option>
+                        <option value="javascript">JavaScript</option>
+                        <option value="typescript">TypeScript</option>
+                        <option value="java">Java</option>
+                        <option value="cpp">C++</option>
+                    </select>
+                    <button onclick="completeCode()" id="complete-btn">Complete</button>
+                </div>
+                <textarea id="complete-code" placeholder="Start typing your code...&#10;&#10;Example:&#10;def fibonacci(n):&#10;    # Complete this function"></textarea>
+                <div class="loading" id="complete-loading">Generating completion...</div>
+                <div id="complete-result" style="padding: 1rem; background: #21262d; border-radius: 6px; display: none;"></div>
+            </div>
+        </div>
+        
+        <!-- Explain Panel -->
+        <div id="explain-panel" class="panel">
+            <div class="code-editor">
+                <div class="actions">
+                    <label>Language:</label>
+                    <select id="explain-language">
+                        <option value="python">Python</option>
+                        <option value="javascript">JavaScript</option>
+                        <option value="typescript">TypeScript</option>
+                        <option value="java">Java</option>
+                        <option value="cpp">C++</option>
+                    </select>
+                    <button onclick="explainCode()" id="explain-btn">Explain</button>
+                </div>
+                <textarea id="explain-code" placeholder="Paste your code here..."></textarea>
+                <div class="loading" id="explain-loading">Analyzing code...</div>
+                <div id="explain-result" style="padding: 1rem; background: #21262d; border-radius: 6px; display: none;"></div>
+            </div>
+        </div>
+        
+        <!-- Refactor Panel -->
+        <div id="refactor-panel" class="panel">
+            <div class="code-editor">
+                <div class="actions">
+                    <label>Language:</label>
+                    <select id="refactor-language">
+                        <option value="python">Python</option>
+                        <option value="javascript">JavaScript</option>
+                        <option value="typescript">TypeScript</option>
+                        <option value="java">Java</option>
+                        <option value="cpp">C++</option>
+                    </select>
+                    <input type="text" id="refactor-instruction" placeholder="e.g., add error handling, optimize performance..." 
+                           style="flex: 1; padding: 0.5rem; background: #0d1117; border: 1px solid #30363d; color: #c9d1d9; border-radius: 6px;">
+                    <button onclick="refactorCode()" id="refactor-btn">Refactor</button>
+                </div>
+                <textarea id="refactor-code" placeholder="Paste your code here..." style="height: 40%;"></textarea>
+                <div class="loading" id="refactor-loading">Refactoring code...</div>
+                <div style="padding: 0.5rem; color: #8b949e;">Refactored Result:</div>
+                <textarea id="refactor-result" placeholder="Refactored code will appear here..." style="height: 40%;" readonly></textarea>
+            </div>
+        </div>
+        
+        <!-- Generate Tests Panel -->
+        <div id="tests-panel" class="panel">
+            <div class="code-editor">
+                <div class="actions">
+                    <label>Language:</label>
+                    <select id="tests-language">
+                        <option value="python">Python</option>
+                        <option value="javascript">JavaScript</option>
+                        <option value="typescript">TypeScript</option>
+                        <option value="java">Java</option>
+                    </select>
+                    <label>Framework:</label>
+                    <select id="tests-framework">
+                        <option value="pytest">pytest</option>
+                        <option value="unittest">unittest</option>
+                        <option value="jest">jest</option>
+                        <option value="mocha">mocha</option>
+                    </select>
+                    <label style="display: flex; align-items: center; gap: 0.5rem;">
+                        <input type="checkbox" id="include-edge-cases" checked> Edge Cases
+                    </label>
+                    <label style="display: flex; align-items: center; gap: 0.5rem;">
+                        <input type="checkbox" id="include-mocks" checked> Mocks
+                    </label>
+                    <button onclick="generateTests()" id="tests-btn">Generate Tests</button>
+                </div>
+                <textarea id="tests-code" placeholder="Paste your code here..." style="height: 35%;"></textarea>
+                <div class="loading" id="tests-loading">Generating comprehensive unit tests...</div>
+                <div style="padding: 0.5rem; color: #8b949e;">Generated Tests:</div>
+                <textarea id="tests-result" placeholder="Test code will appear here..." style="height: 45%;" readonly></textarea>
+            </div>
+        </div>
+        
+        <!-- Bug Fix Panel -->
+        <div id="bugfix-panel" class="panel">
+            <div class="code-editor">
+                <div class="actions">
+                    <label>Language:</label>
+                    <select id="bugfix-language">
+                        <option value="python">Python</option>
+                        <option value="javascript">JavaScript</option>
+                        <option value="typescript">TypeScript</option>
+                        <option value="java">Java</option>
+                        <option value="cpp">C++</option>
+                    </select>
+                    <button onclick="fixBug()" id="bugfix-btn">Analyze & Fix</button>
+                </div>
+                <textarea id="bugfix-code" placeholder="Paste your buggy code here..." style="height: 30%;"></textarea>
+                <input type="text" id="bugfix-error" placeholder="Error message (optional)" 
+                       style="width: 100%; padding: 0.75rem; background: #0d1117; border: 1px solid #30363d; color: #c9d1d9; border-radius: 6px; margin: 0.5rem 0;">
+                <div class="loading" id="bugfix-loading">Analyzing and fixing bugs...</div>
+                <div style="padding: 0.5rem; color: #8b949e;">Analysis & Fix:</div>
+                <div id="bugfix-analysis" style="padding: 1rem; background: #21262d; border-radius: 6px; margin-bottom: 0.5rem; min-height: 60px;"></div>
+                <div style="padding: 0.5rem; color: #8b949e;">Fixed Code:</div>
+                <textarea id="bugfix-result" placeholder="Fixed code will appear here..." style="height: 30%;" readonly></textarea>
+            </div>
+        </div>
+
+        <!-- Advanced Panel -->
+        <div id="advanced-panel" class="panel">
+            <div class="code-editor">
+                <h3 style="margin-bottom: 1rem;">⚙️ Advanced Features</h3>
+                
+                <!-- Tabs for Advanced Features -->
+                <div style="display: flex; gap: 0.5rem; margin-bottom: 1rem; border-bottom: 1px solid #30363d; padding-bottom: 0.5rem; flex-wrap: wrap;">
+                    <button onclick="switchAdvancedTab('refactor')" style="padding: 0.5rem 1rem; background: #238636; border: none; color: white; border-radius: 4px; cursor: pointer;">Refactor</button>
+                    <button onclick="switchAdvancedTab('complexity')" style="padding: 0.5rem 1rem; background: transparent; border: 1px solid #30363d; color: #8b949e; border-radius: 4px; cursor: pointer;">Complexity</button>
+                    <button onclick="switchAdvancedTab('patterns')" style="padding: 0.5rem 1rem; background: transparent; border: 1px solid #30363d; color: #8b949e; border-radius: 4px; cursor: pointer;">Patterns & Smells</button>
+                    <button onclick="switchAdvancedTab('multifile')" style="padding: 0.5rem 1rem; background: transparent; border: 1px solid #30363d; color: #8b949e; border-radius: 4px; cursor: pointer;">Multi-File</button>
+                    <button onclick="switchAdvancedTab('search')" style="padding: 0.5rem 1rem; background: transparent; border: 1px solid #30363d; color: #8b949e; border-radius: 4px; cursor: pointer;">Search</button>
+                </div>
+
+                <!-- Refactor Workspace -->
+                <div id="refactor-advanced" style="display: block;">
+                    <div style="margin-bottom: 1rem;">
+                        <label style="display: block; margin-bottom: 0.5rem;">Refactoring Task:</label>
+                        <textarea id="refactor-task" placeholder="e.g., rename MyClass to NewClass, update imports..." style="width: 100%; height: 100px; padding: 0.75rem; background: #0d1117; border: 1px solid #30363d; color: #c9d1d9; border-radius: 6px;"></textarea>
+                    </div>
+                    <button id="refactor-btn" onclick="refactorWorkspace()" style="padding: 0.75rem 1.5rem; background: #238636; border: none; color: white; border-radius: 6px; cursor: pointer;">Analyze Refactoring</button>
+                    <div id="refactor-result" style="display: none; margin-top: 1rem; padding: 1rem; background: #161b22; border-radius: 6px; white-space: pre-wrap; overflow-y: auto; max-height: 300px;"></div>
+                </div>
+
+                <!-- Complexity Analysis -->
+                <div id="complexity-advanced" style="display: none;">
+                    <div style="margin-bottom: 1rem;">
+                        <label style="display: block; margin-bottom: 0.5rem;">Code:</label>
+                        <textarea id="complexity-code" placeholder="Paste code to analyze..." style="width: 100%; height: 150px; padding: 0.75rem; background: #0d1117; border: 1px solid #30363d; color: #c9d1d9; border-radius: 6px;"></textarea>
+                    </div>
+                    <div style="margin-bottom: 1rem;">
+                        <label style="display: block; margin-bottom: 0.5rem;">Language:</label>
+                        <select id="complexity-language" style="width: 100%; padding: 0.75rem; background: #0d1117; border: 1px solid #30363d; color: #c9d1d9; border-radius: 6px;">
+                            <option value="python">Python</option>
+                            <option value="javascript">JavaScript</option>
+                            <option value="typescript">TypeScript</option>
+                            <option value="java">Java</option>
+                        </select>
+                    </div>
+                    <button id="complexity-btn" onclick="analyzeComplexity()" style="padding: 0.75rem 1.5rem; background: #238636; border: none; color: white; border-radius: 6px; cursor: pointer;">Analyze Complexity</button>
+                    <div id="complexity-result" style="display: none; margin-top: 1rem; padding: 1rem; background: #161b22; border-radius: 6px; overflow-y: auto; max-height: 400px;"></div>
+                </div>
+
+                <!-- Design Patterns & Code Smells Analysis -->
+                <div id="patterns-advanced" style="display: none;">
+                    <div style="margin-bottom: 1rem;">
+                        <label style="display: block; margin-bottom: 0.5rem;">Code:</label>
+                        <textarea id="patterns-code" placeholder="Paste code to analyze for patterns and smells..." style="width: 100%; height: 150px; padding: 0.75rem; background: #0d1117; border: 1px solid #30363d; color: #c9d1d9; border-radius: 6px;"></textarea>
+                    </div>
+                    <div style="margin-bottom: 1rem;">
+                        <label style="display: block; margin-bottom: 0.5rem;">Language:</label>
+                        <select id="patterns-language" style="width: 100%; padding: 0.75rem; background: #0d1117; border: 1px solid #30363d; color: #c9d1d9; border-radius: 6px;">
+                            <option value="python">Python</option>
+                            <option value="javascript">JavaScript</option>
+                            <option value="typescript">TypeScript</option>
+                            <option value="java">Java</option>
+                        </select>
+                    </div>
+                    <button id="patterns-btn" onclick="analyzePatterns()" style="padding: 0.75rem 1.5rem; background: #238636; border: none; color: white; border-radius: 6px; cursor: pointer;">Analyze Patterns & Smells</button>
+                    <div id="patterns-result" style="display: none; margin-top: 1rem; padding: 1rem; background: #161b22; border-radius: 6px; overflow-y: auto; max-height: 600px;"></div>
+                </div>
+
+                <!-- Multi-File Context Analysis -->
+                <div id="multifile-advanced" style="display: none;">
+                    <p style="color: #8b949e; margin-bottom: 1rem;">Analyze dependencies and relationships across multiple files in your workspace.</p>
+                    <button id="multifile-btn" onclick="analyzeMultiFileContext()" style="padding: 0.75rem 1.5rem; background: #238636; border: none; color: white; border-radius: 6px; cursor: pointer; margin-bottom: 1rem;">Analyze Multi-File Context</button>
+                    <div id="multifile-result" style="display: none; margin-top: 1rem; padding: 1rem; background: #161b22; border-radius: 6px; overflow-y: auto; max-height: 600px;"></div>
+                </div>
+
+                <!-- Workspace Search -->
+                <div id="search-advanced" style="display: none;">
+                    <div style="margin-bottom: 1rem;">
+                        <label style="display: block; margin-bottom: 0.5rem;">Search Query:</label>
+                        <input type="text" id="search-query" placeholder="Enter search term or regex pattern..." style="width: 100%; padding: 0.75rem; background: #0d1117; border: 1px solid #30363d; color: #c9d1d9; border-radius: 6px;">
+                    </div>
+                    <div style="margin-bottom: 1rem;">
+                        <label style="display: block; margin-bottom: 0.5rem;">Search Type:</label>
+                        <select id="search-type" style="width: 100%; padding: 0.75rem; background: #0d1117; border: 1px solid #30363d; color: #c9d1d9; border-radius: 6px;">
+                            <option value="semantic">Semantic</option>
+                            <option value="keyword">Keyword</option>
+                            <option value="regex">Regex</option>
+                        </select>
+                    </div>
+                    <button id="search-btn" onclick="workspaceSearch()" style="padding: 0.75rem 1.5rem; background: #238636; border: none; color: white; border-radius: 6px; cursor: pointer;">Search</button>
+                    <div id="search-result" style="display: none; margin-top: 1rem; padding: 1rem; background: #161b22; border-radius: 6px; white-space: pre-wrap; overflow-y: auto; max-height: 400px;"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- GitHub Panel -->
+        <div id="github-panel" class="panel">
+            <div class="code-editor">
+                <h3 style="margin-bottom: 1rem;">🐙 GitHub Integration</h3>
+                <p style="color: #8b949e; margin-bottom: 1rem;">Note: GitHub Personal Access Token (optional) can improve API rate limits.</p>
+                
+                <!-- Token Input -->
+                <input type="password" id="github-token" placeholder="GitHub Personal Access Token (optional)" 
+                       style="width: 100%; padding: 0.75rem; background: #0d1117; border: 1px solid #30363d; color: #c9d1d9; border-radius: 6px; margin-bottom: 1rem;">
+                
+                <!-- PR Summary -->
+                <div style="margin-bottom: 2rem;">
+                    <h4>Pull Request Summary</h4>
+                    <div style="display: flex; gap: 10px; margin: 0.5rem 0;">
+                        <input type="text" id="pr-repo" placeholder="owner/repo" 
+                               style="flex: 2; padding: 0.75rem; background: #0d1117; border: 1px solid #30363d; color: #c9d1d9; border-radius: 6px;">
+                        <input type="number" id="pr-number" placeholder="PR #" 
+                               style="flex: 1; padding: 0.75rem; background: #0d1117; border: 1px solid #30363d; color: #c9d1d9; border-radius: 6px;">
+                    </div>
+                    <button onclick="getPRSummary()" id="pr-summary-btn" style="width: 100%; margin-top: 0.5rem;">Get PR Summary</button>
+                    <div class="loading" id="pr-loading">Analyzing Pull Request...</div>
+                    <div id="pr-result" style="padding: 1rem; background: #21262d; border-radius: 6px; margin-top: 0.5rem; display: none;"></div>
+                </div>
+
+                <!-- PR Review -->
+                <div style="margin-bottom: 2rem;">
+                    <h4>PR Code Review</h4>
+                    <div style="display: flex; gap: 10px; margin: 0.5rem 0;">
+                        <input type="text" id="review-repo" placeholder="owner/repo" 
+                               style="flex: 2; padding: 0.75rem; background: #0d1117; border: 1px solid #30363d; color: #c9d1d9; border-radius: 6px;">
+                        <input type="number" id="review-number" placeholder="PR #" 
+                               style="flex: 1; padding: 0.75rem; background: #0d1117; border: 1px solid #30363d; color: #c9d1d9; border-radius: 6px;">
+                    </div>
+                    <select id="review-focus" style="width: 100%; padding: 0.75rem; background: #0d1117; border: 1px solid #30363d; color: #c9d1d9; border-radius: 6px; margin: 0.5rem 0;">
+                        <option value="general">General Review</option>
+                        <option value="security">Security Focus</option>
+                        <option value="performance">Performance Focus</option>
+                        <option value="style">Style & Best Practices</option>
+                    </select>
+                    <button onclick="reviewPR()" id="review-btn" style="width: 100%;">Review PR</button>
+                    <div class="loading" id="review-loading">Reviewing code...</div>
+                    <div id="review-result" style="padding: 1rem; background: #21262d; border-radius: 6px; margin-top: 0.5rem; display: none;"></div>
+                </div>
+
+                <!-- Commit Message -->
+                <div style="margin-bottom: 2rem;">
+                    <h4>Generate Commit Message</h4>
+                    <textarea id="commit-diff" placeholder="Paste your git diff here..." style="height: 120px; margin: 0.5rem 0;"></textarea>
+                    <button onclick="generateCommitMessage()" id="commit-btn" style="width: 100%;">Generate Message</button>
+                    <div class="loading" id="commit-loading">Generating commit message...</div>
+                    <input type="text" id="commit-result" readonly placeholder="Commit message will appear here..." 
+                           style="width: 100%; padding: 0.75rem; background: #161b22; border: 1px solid #30363d; color: #58a6ff; border-radius: 6px; margin-top: 0.5rem; display: none;">
+                </div>
+
+                <!-- Issue Analysis -->
+                <div>
+                    <h4>Analyze GitHub Issue</h4>
+                    <div style="display: flex; gap: 10px; margin: 0.5rem 0;">
+                        <input type="text" id="issue-repo" placeholder="owner/repo" 
+                               style="flex: 2; padding: 0.75rem; background: #0d1117; border: 1px solid #30363d; color: #c9d1d9; border-radius: 6px;">
+                        <input type="number" id="issue-number" placeholder="Issue #" 
+                               style="flex: 1; padding: 0.75rem; background: #0d1117; border: 1px solid #30363d; color: #c9d1d9; border-radius: 6px;">
+                    </div>
+                    <button onclick="analyzeIssue()" id="issue-btn" style="width: 100%;">Analyze Issue</button>
+                    <div class="loading" id="issue-loading">Analyzing issue...</div>
+                    <div id="issue-result" style="padding: 1rem; background: #21262d; border-radius: 6px; margin-top: 0.5rem; display: none;"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        let chatHistory = [];
+        
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+        
+        function switchTab(tab) {
+            // Update tab buttons
+            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+            event.target.classList.add('active');
+            
+            // Update panels
+            document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+            document.getElementById(tab + '-panel').classList.add('active');
+        }
+
+        function switchAdvancedTab(subtab) {
+            // Hide all advanced tabs
+            document.getElementById('refactor-advanced').style.display = 'none';
+            document.getElementById('complexity-advanced').style.display = 'none';
+            document.getElementById('patterns-advanced').style.display = 'none';
+            document.getElementById('multifile-advanced').style.display = 'none';
+            document.getElementById('search-advanced').style.display = 'none';
+            
+            // Show selected tab
+            document.getElementById(subtab + '-advanced').style.display = 'block';
+            
+            // Update button styles
+            const buttons = event.target.parentElement.querySelectorAll('button');
+            buttons.forEach(btn => {
+                btn.style.background = 'transparent';
+                btn.style.border = '1px solid #30363d';
+                btn.style.color = '#8b949e';
+            });
+            event.target.style.background = '#238636';
+            event.target.style.border = 'none';
+            event.target.style.color = 'white';
+        }
+        
+        function addChatMessage(role, content) {
+            const messagesDiv = document.getElementById('chat-messages');
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `message ${role}`;
+            
+            // Simple markdown-like formatting
+            let formatted = content
+                .replace(/```(\w+)?\n([\s\S]+?)```/g, '<pre><code>$2</code></pre>')
+                .replace(/`([^`]+)`/g, '<code>$1</code>')
+                .replace(/\n/g, '<br>');
+            
+            messageDiv.innerHTML = formatted;
+            messagesDiv.appendChild(messageDiv);
+            messagesDiv.scrollTop = messagesDiv.scrollHeight;
+        }
+        
+        async function sendChatMessage() {
+            const input = document.getElementById('chat-input');
+            const btn = document.getElementById('chat-btn');
+            const message = input.value.trim();
+            
+            if (!message) return;
+            
+            // Add user message
+            addChatMessage('user', message);
+            chatHistory.push({ role: 'user', content: message });
+            
+            input.value = '';
+            btn.disabled = true;
+            btn.textContent = 'Thinking...';
+            
+            try {
+                const response = await fetch('/chat', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        messages: chatHistory,
+                        max_new_tokens: 256
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (data.error) {
+                    addChatMessage('assistant', `Error: ${data.error}`);
+                } else {
+                    addChatMessage('assistant', data.response);
+                    chatHistory.push({ role: 'assistant', content: data.response });
+                }
+            } catch (error) {
+                addChatMessage('assistant', `Connection error: ${error.message}`);
+            }
+            
+            btn.disabled = false;
+            btn.textContent = 'Send';
+        }
+        
+        async function completeCode() {
+            const code = document.getElementById('complete-code').value.trim();
+            const language = document.getElementById('complete-language').value;
+            const btn = document.getElementById('complete-btn');
+            const loading = document.getElementById('complete-loading');
+            const result = document.getElementById('complete-result');
+            
+            if (!code) {
+                alert('Please enter some code to complete');
+                return;
+            }
+            
+            btn.disabled = true;
+            loading.classList.add('active');
+            result.style.display = 'none';
+            
+            try {
+                const response = await fetch('/complete', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        prompt: code,
+                        language: language,
+                        max_new_tokens: 150
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (data.error) {
+                    result.innerHTML = `<strong>Error:</strong> ${data.error}`;
+                } else {
+                    result.innerHTML = `<strong>Completed Code:</strong><br><br><pre style="background: #161b22; padding: 1rem; border-radius: 6px; overflow-x: auto;"><code>${escapeHtml(data.completion)}</code></pre>`;
+                }
+                
+                result.style.display = 'block';
+            } catch (error) {
+                result.innerHTML = `<strong>Connection error:</strong> ${error.message}`;
+                result.style.display = 'block';
+            }
+            
+            btn.disabled = false;
+            loading.classList.remove('active');
+        }
+
+        async function explainCode() {
+            const code = document.getElementById('explain-code').value.trim();
+            const language = document.getElementById('explain-language').value;
+            const btn = document.getElementById('explain-btn');
+            const loading = document.getElementById('explain-loading');
+            const result = document.getElementById('explain-result');
+            
+            if (!code) {
+                alert('Please enter some code to explain');
+                return;
+            }
+            
+            btn.disabled = true;
+            loading.classList.add('active');
+            result.style.display = 'none';
+            
+            try {
+                const response = await fetch('/explain', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        code: code,
+                        language: language,
+                        max_new_tokens: 300
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (data.error) {
+                    result.innerHTML = `<strong>Error:</strong> ${data.error}`;
+                } else {
+                    result.innerHTML = `<strong>Explanation:</strong><br><br>${data.explanation.replace(/\n/g, '<br>')}`;
+                }
+                
+                result.style.display = 'block';
+            } catch (error) {
+                result.innerHTML = `<strong>Connection error:</strong> ${error.message}`;
+                result.style.display = 'block';
+            }
+            
+            btn.disabled = false;
+            loading.classList.remove('active');
+        }
+        
+        async function refactorCode() {
+            const code = document.getElementById('refactor-code').value.trim();
+            const language = document.getElementById('refactor-language').value;
+            const instruction = document.getElementById('refactor-instruction').value.trim() || 'improve and refactor';
+            const btn = document.getElementById('refactor-btn');
+            const loading = document.getElementById('refactor-loading');
+            const result = document.getElementById('refactor-result');
+            
+            if (!code) {
+                alert('Please enter some code to refactor');
+                return;
+            }
+            
+            btn.disabled = true;
+            loading.classList.add('active');
+            result.value = '';
+            
+            try {
+                const response = await fetch('/refactor', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        code: code,
+                        language: language,
+                        instruction: instruction,
+                        max_new_tokens: 400
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (data.error) {
+                    result.value = `Error: ${data.error}`;
+                } else {
+                    result.value = data.refactored_code;
+                }
+            } catch (error) {
+                result.value = `Connection error: ${error.message}`;
+            }
+            
+            btn.disabled = false;
+            loading.classList.remove('active');
+        }
+        
+        async function generateTests() {
+            const code = document.getElementById('tests-code').value.trim();
+            const language = document.getElementById('tests-language').value;
+            const framework = document.getElementById('tests-framework').value;
+            const includeEdgeCases = document.getElementById('include-edge-cases').checked;
+            const includeMocks = document.getElementById('include-mocks').checked;
+            const btn = document.getElementById('tests-btn');
+            const loading = document.getElementById('tests-loading');
+            const result = document.getElementById('tests-result');
+            
+            if (!code) {
+                alert('Please enter some code to generate tests for');
+                return;
+            }
+            
+            btn.disabled = true;
+            loading.classList.add('active');
+            result.value = '';
+            
+            try {
+                const response = await fetch('/generate-tests', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        code: code,
+                        language: language,
+                        test_framework: framework,
+                        include_edge_cases: includeEdgeCases,
+                        include_mocks: includeMocks,
+                        max_new_tokens: 600
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (data.error) {
+                    result.value = `Error: ${data.error}`;
+                } else {
+                    let output = data.test_code;
+                    
+                    if (data.edge_cases && data.edge_cases.length > 0) {
+                        output += '\n\n// Edge Cases to Consider:\n';
+                        data.edge_cases.forEach(ec => {
+                            output += `// - ${ec}\n`;
+                        });
+                    }
+                    
+                    if (data.mocks && data.mocks.length > 0) {
+                        output += '\n\n// Objects/Functions to Mock:\n';
+                        data.mocks.forEach(mock => {
+                            output += `// - ${mock}\n`;
+                        });
+                    }
+                    
+                    result.value = output;
+                }
+            } catch (error) {
+                result.value = `Connection error: ${error.message}`;
+            }
+            
+            btn.disabled = false;
+            loading.classList.remove('active');
+        }
+        
+        async function fixBug() {
+            const code = document.getElementById('bugfix-code').value.trim();
+            const language = document.getElementById('bugfix-language').value;
+            const errorMessage = document.getElementById('bugfix-error').value.trim();
+            const btn = document.getElementById('bugfix-btn');
+            const loading = document.getElementById('bugfix-loading');
+            const analysis = document.getElementById('bugfix-analysis');
+            const result = document.getElementById('bugfix-result');
+            
+            if (!code) {
+                alert('Please enter some code to analyze');
+                return;
+            }
+            
+            btn.disabled = true;
+            loading.classList.add('active');
+            analysis.innerHTML = '';
+            result.value = '';
+            
+            try {
+                const response = await fetch('/fix-bug', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        code: code,
+                        language: language,
+                        error_message: errorMessage,
+                        max_new_tokens: 400
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (data.error) {
+                    analysis.innerHTML = `<strong>Error:</strong> ${data.error}`;
+                    result.value = '';
+                } else {
+                    if (errorMessage) {
+                        analysis.innerHTML = `<strong>Bug Analysis:</strong><br><br>${data.analysis.replace(/\n/g, '<br>')}`;
+                    } else {
+                        analysis.innerHTML = `<strong>Code Review:</strong><br><br>${data.analysis.replace(/\n/g, '<br>')}`;
+                    }
+                    
+                    if (data.fixed_code) {
+                        result.value = data.fixed_code;
+                    } else {
+                        result.value = '// No automatic fix available. See analysis above.';
+                    }
+                }
+            } catch (error) {
+                analysis.innerHTML = `<strong>Connection error:</strong> ${error.message}`;
+                result.value = '';
+            }
+            
+            btn.disabled = false;
+            loading.classList.remove('active');
+        }
+
+        // ============================================
+        // Advanced Features Functions
+        // ============================================
+
+        async function refactorWorkspace() {
+            const task = document.getElementById('refactor-task').value.trim();
+            const result = document.getElementById('refactor-result');
+            const btn = document.getElementById('refactor-btn');
+            
+            if (!task) {
+                alert('Please enter a refactoring task');
+                return;
+            }
+            
+            btn.disabled = true;
+            result.style.display = 'none';
+            
+            try {
+                const response = await fetch('/refactor-workspace', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        files: [{ path: 'example.py', content: 'class User: pass' }],
+                        task: task,
+                        language: 'python'
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (data.error) {
+                    result.innerHTML = `<strong>Error:</strong> ${data.error}`;
+                } else {
+                    result.innerHTML = `
+                        <h4>Refactoring Plan:</h4>
+                        <pre style="background: #161b22; padding: 1rem; border-radius: 6px; white-space: pre-wrap;">${escapeHtml(data.plan)}</pre>
+                        <p><strong>Files to change:</strong> ${data.files_changed}/${data.files.length}</p>
+                    `;
+                }
+                result.style.display = 'block';
+            } catch (error) {
+                result.innerHTML = `<strong>Error:</strong> ${error.message}`;
+                result.style.display = 'block';
+            }
+            
+            btn.disabled = false;
+        }
+        
+        async function analyzeComplexity() {
+            const code = document.getElementById('complexity-code').value.trim();
+            const language = document.getElementById('complexity-language').value;
+            const result = document.getElementById('complexity-result');
+            const btn = document.getElementById('complexity-btn');
+            
+            if (!code) {
+                alert('Please enter code to analyze');
+                return;
+            }
+            
+            btn.disabled = true;
+            result.style.display = 'none';
+            
+            try {
+                const response = await fetch('/analyze-complexity', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        code: code,
+                        language: language
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (data.error) {
+                    result.innerHTML = `<strong>Error:</strong> ${data.error}`;
+                } else {
+                    const m = data.metrics;
+                    result.innerHTML = `
+                        <h4>Code Metrics</h4>
+                        <table style="width: 100%; border-collapse: collapse;">
+                        <tr style="background: #161b22;">
+                            <td style="padding: 0.5rem; border: 1px solid #30363d;"><strong>Lines of Code:</strong></td>
+                            <td style="padding: 0.5rem; border: 1px solid #30363d;">${m.lines_of_code}</td>
+                        </tr>
+                        <tr>
+                            <td style="padding: 0.5rem; border: 1px solid #30363d;"><strong>Cyclomatic Complexity:</strong></td>
+                            <td style="padding: 0.5rem; border: 1px solid #30363d;">${m.cyclomatic_complexity} (${m.complexity_rating})</td>
+                        </tr>
+                        <tr style="background: #161b22;">
+                            <td style="padding: 0.5rem; border: 1px solid #30363d;"><strong>Functions:</strong></td>
+                            <td style="padding: 0.5rem; border: 1px solid #30363d;">${m.functions}</td>
+                        </tr>
+                        <tr>
+                            <td style="padding: 0.5rem; border: 1px solid #30363d;"><strong>Classes:</strong></td>
+                            <td style="padding: 0.5rem; border: 1px solid #30363d;">${m.classes}</td>
+                        </tr>
+                        </table>
+                        <h4 style="margin-top: 1rem;">Analysis:</h4>
+                        <pre style="background: #161b22; padding: 1rem; border-radius: 6px; white-space: pre-wrap;">${escapeHtml(data.analysis)}</pre>
+                    `;
+                }
+                result.style.display = 'block';
+            } catch (error) {
+                result.innerHTML = `<strong>Error:</strong> ${error.message}`;
+                result.style.display = 'block';
+            }
+            
+            btn.disabled = false;
+        }
+        
+        async function analyzePatterns() {
+            const code = document.getElementById('patterns-code').value.trim();
+            const language = document.getElementById('patterns-language').value;
+            const result = document.getElementById('patterns-result');
+            const btn = document.getElementById('patterns-btn');
+            
+            if (!code) {
+                alert('Please enter code to analyze');
+                return;
+            }
+            
+            btn.disabled = true;
+            result.style.display = 'none';
+            
+            try {
+                const response = await fetch('/analyze-advanced', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        code: code,
+                        language: language
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (data.error) {
+                    result.innerHTML = `<strong>Error:</strong> ${data.error}`;
+                } else {
+                    let html = '';
+                    
+                    // Design Patterns
+                    if (data.design_patterns && data.design_patterns.length > 0) {
+                        html += '<h4 style="color: #58a6ff; margin-top: 1rem; margin-bottom: 0.5rem;">🎨 Design Patterns Detected</h4>';
+                        html += '<ul style="margin-left: 1.5rem;">';
+                        data.design_patterns.forEach(pattern => {
+                            html += `<li style="color: #c9d1d9; margin-bottom: 0.5rem;"><strong>${pattern}</strong></li>`;
+                        });
+                        html += '</ul>';
+                    }
+                    
+                    // Code Smells
+                    if (data.code_smells && data.code_smells.length > 0) {
+                        html += '<h4 style="color: #f85149; margin-top: 1rem; margin-bottom: 0.5rem;">⚠️ Code Smells Detected</h4>';
+                        html += '<div style="background: #161b22; padding: 0.75rem; border-radius: 6px; border-left: 3px solid #f85149;">';
+                        data.code_smells.forEach(smell => {
+                            html += `<div style="margin-bottom: 0.5rem; color: #c9d1d9;">• ${smell}</div>`;
+                        });
+                        html += '</div>';
+                    }
+                    
+                    // Advanced Metrics
+                    if (data.advanced_metrics) {
+                        html += '<h4 style="color: #79c0ff; margin-top: 1rem; margin-bottom: 0.5rem;">📊 Advanced Metrics</h4>';
+                        html += '<table style="width: 100%; border-collapse: collapse; font-size: 0.9rem;">';
+                        
+                        const metrics = data.advanced_metrics;
+                        html += `
+                            <tr style="background: #161b22;">
+                                <td style="padding: 0.5rem; border: 1px solid #30363d;"><strong>Avg Function Length:</strong></td>
+                                <td style="padding: 0.5rem; border: 1px solid #30363d;">${metrics.avg_function_length || 'N/A'} lines</td>
+                            </tr>
+                            <tr>
+                                <td style="padding: 0.5rem; border: 1px solid #30363d;"><strong>Cyclomatic Complexity:</strong></td>
+                                <td style="padding: 0.5rem; border: 1px solid #30363d;">${metrics.cyclomatic_complexity || 'N/A'}</td>
+                            </tr>
+                            <tr style="background: #161b22;">
+                                <td style="padding: 0.5rem; border: 1px solid #30363d;"><strong>Max Nesting Depth:</strong></td>
+                                <td style="padding: 0.5rem; border: 1px solid #30363d;">${metrics.nesting_depth || 'N/A'}</td>
+                            </tr>
+                            <tr>
+                                <td style="padding: 0.5rem; border: 1px solid #30363d;"><strong>Total Functions:</strong></td>
+                                <td style="padding: 0.5rem; border: 1px solid #30363d;">${metrics.total_functions || 'N/A'}</td>
+                            </tr>
+                            <tr style="background: #161b22;">
+                                <td style="padding: 0.5rem; border: 1px solid #30363d;"><strong>Duplicate Lines:</strong></td>
+                                <td style="padding: 0.5rem; border: 1px solid #30363d;">${metrics.duplicate_lines || '0'}</td>
+                            </tr>
+                        `;
+                        html += '</table>';
+                    }
+                    
+                    // Architectural Assessment
+                    if (data.architecture_assessment) {
+                        html += '<h4 style="color: #a371f7; margin-top: 1rem; margin-bottom: 0.5rem;">🏗️ Architecture Assessment</h4>';
+                        html += '<pre style="background: #161b22; padding: 1rem; border-radius: 6px; white-space: pre-wrap; font-size: 0.85rem; color: #c9d1d9;">' + escapeHtml(data.architecture_assessment) + '</pre>';
+                    }
+                    
+                    // Recommendations
+                    if (data.recommendations && data.recommendations.length > 0) {
+                        html += '<h4 style="color: #79c0ff; margin-top: 1rem; margin-bottom: 0.5rem;">💡 Recommendations</h4>';
+                        html += '<ol style="margin-left: 1.5rem;">';
+                        data.recommendations.forEach(rec => {
+                            html += `<li style="color: #c9d1d9; margin-bottom: 0.5rem;">${rec}</li>`;
+                        });
+                        html += '</ol>';
+                    }
+                    
+                    result.innerHTML = html || '<p style="color: #8b949e;">No patterns or smells detected in this code.</p>';
+                }
+                result.style.display = 'block';
+            } catch (error) {
+                result.innerHTML = `<strong>Error:</strong> ${error.message}`;
+                result.style.display = 'block';
+            }
+            
+            btn.disabled = false;
+        }
+        
+        async function workspaceSearch() {
+            const query = document.getElementById('search-query').value.trim();
+            const searchType = document.getElementById('search-type').value;
+            const result = document.getElementById('search-result');
+            const btn = document.getElementById('search-btn');
+            
+            if (!query) {
+                alert('Please enter a search query');
+                return;
+            }
+            
+            btn.disabled = true;
+            result.style.display = 'none';
+            
+            try {
+                const response = await fetch('/workspace-search', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        files: [{ path: 'example.py', content: 'import os\nimport sys' }],
+                        query: query,
+                        search_type: searchType
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (data.error) {
+                    result.innerHTML = `<strong>Error:</strong> ${data.error}`;
+                } else if (searchType === 'semantic') {
+                    result.innerHTML = `<h4>Semantic Search Results</h4><pre style="background: #161b22; padding: 1rem; border-radius: 6px; white-space: pre-wrap;">${escapeHtml(data.results)}</pre>`;
+                } else {
+                    result.innerHTML = `<h4>Search Results (${searchType})</h4><p>Total matches: ${data.total_matches}</p>`;
+                }
+                result.style.display = 'block';
+            } catch (error) {
+                result.innerHTML = `<strong>Error:</strong> ${error.message}`;
+                result.style.display = 'block';
+            }
+            
+            btn.disabled = false;
+        }
+
+        async function analyzeMultiFileContext() {
+            const result = document.getElementById('multifile-result');
+            const btn = document.getElementById('multifile-btn');
+            
+            btn.disabled = true;
+            result.style.display = 'none';
+            
+            try {
+                // Note: In a real scenario, this would gather files from VS Code/workspace
+                // For the demo, we'll show the expected response format
+                const response = await fetch('/analyze-multi-file-context', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        files: [
+                            { path: 'main.py', content: 'import utils', language: 'python' },
+                            { path: 'utils.py', content: 'def helper(): pass', language: 'python' }
+                        ]
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (data.error) {
+                    result.innerHTML = `<strong>Error:</strong> ${data.error}`;
+                } else {
+                    let html = '<h4>📊 Multi-File Context Analysis</h4>';
+                    html += `<p><strong>Files Analyzed:</strong> ${data.files_analyzed} | <strong>Imports:</strong> ${data.total_imports} | <strong>Exports:</strong> ${data.total_exports}</p>`;
+                    
+                    if (data.circular_dependencies.length > 0) {
+                        html += `<div style="background: #402800; padding: 0.75rem; border-radius: 6px; margin: 0.5rem 0;">⚠️ <strong>Circular Dependencies:</strong> ${data.circular_dependencies.length} cycle(s)</div>`;
+                    }
+                    
+                    if (data.core_modules.length > 0) {
+                        html += `<h5>Core Modules</h5><ul>`;
+                        data.core_modules.forEach(mod => {
+                            html += `<li>${escapeHtml(mod)}</li>`;
+                        });
+                        html += `</ul>`;
+                    }
+                    
+                    html += `<h5>Analysis</h5><pre style="background: #161b22; padding: 1rem; border-radius: 6px; white-space: pre-wrap;">${escapeHtml(data.cross_file_analysis)}</pre>`;
+                    
+                    if (data.suggestions.length > 0) {
+                        html += `<h5>Improvement Suggestions</h5><ul>`;
+                        data.suggestions.forEach(sugg => {
+                            html += `<li>${escapeHtml(sugg)}</li>`;
+                        });
+                        html += `</ul>`;
+                    }
+                    
+                    result.innerHTML = html;
+                }
+                result.style.display = 'block';
+            } catch (error) {
+                result.innerHTML = `<strong>Error:</strong> ${error.message}`;
+                result.style.display = 'block';
+            }
+            
+            btn.disabled = false;
+        }
+
+        // ============================================
+        // GitHub Functions
+        // ============================================
+
+        async function getPRSummary() {
+            const repo = document.getElementById('pr-repo').value.trim();
+            const prNumber = document.getElementById('pr-number').value.trim();
+            const token = document.getElementById('github-token').value.trim();
+            const btn = document.getElementById('pr-summary-btn');
+            const loading = document.getElementById('pr-loading');
+            const result = document.getElementById('pr-result');
+
+            if (!repo || !prNumber) {
+                alert('Please enter repository and PR number');
+                return;
+            }
+
+            btn.disabled = true;
+            loading.classList.add('active');
+            result.style.display = 'none';
+
+            try {
+                const response = await fetch('/github/pr-summary', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        repo: repo,
+                        pr_number: parseInt(prNumber),
+                        token: token || null
+                    })
+                });
+
+                const data = await response.json();
+
+                if (data.error) {
+                    result.innerHTML = `<strong>Error:</strong> ${data.error}`;
+                } else {
+                    result.innerHTML = `
+                        <h4>${escapeHtml(data.pr_info.title)}</h4>
+                        <p><strong>Author:</strong> ${escapeHtml(data.pr_info.author)} | <strong>Status:</strong> ${data.pr_info.state}</p>
+                        <p><strong>Files:</strong> ${data.pr_info.files_changed} | <strong>Changes:</strong> +${data.pr_info.additions} / -${data.pr_info.deletions}</p>
+                        <h5>AI Summary:</h5>
+                        <pre style="background: #161b22; padding: 1rem; border-radius: 6px; white-space: pre-wrap;">${escapeHtml(data.summary)}</pre>
+                        <a href="${data.url}" target="_blank" style="color: #58a6ff;">View on GitHub</a>
+                    `;
+                }
+                result.style.display = 'block';
+            } catch (error) {
+                result.innerHTML = `<strong>Connection error:</strong> ${error.message}`;
+                result.style.display = 'block';
+            }
+
+            btn.disabled = false;
+            loading.classList.remove('active');
+        }
+
+        async function reviewPR() {
+            const repo = document.getElementById('review-repo').value.trim();
+            const prNumber = document.getElementById('review-number').value.trim();
+            const focus = document.getElementById('review-focus').value;
+            const token = document.getElementById('github-token').value.trim();
+            const btn = document.getElementById('review-btn');
+            const loading = document.getElementById('review-loading');
+            const result = document.getElementById('review-result');
+
+            if (!repo || !prNumber) {
+                alert('Please enter repository and PR number');
+                return;
+            }
+
+            btn.disabled = true;
+            loading.classList.add('active');
+            result.style.display = 'none';
+
+            try {
+                const response = await fetch('/github/pr-review', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        repo: repo,
+                        pr_number: parseInt(prNumber),
+                        focus: focus,
+                        token: token || null
+                    })
+                });
+
+                const data = await response.json();
+
+                if (data.error) {
+                    result.innerHTML = `<strong>Error:</strong> ${data.error}`;
+                } else {
+                    let reviewsHtml = data.reviews.map(r => `
+                        <div style="margin-bottom: 1rem; border-left: 3px solid #58a6ff; padding-left: 10px;">
+                            <strong>${escapeHtml(r.file)}</strong> (+${r.additions} / -${r.deletions})
+                            ${r.issues.length > 0 ? `<div style="background: #402800; padding: 8px; margin: 8px 0; border-radius: 4px;">${r.issues.map(i => escapeHtml(i)).join('<br>')}</div>` : ''}
+                            <pre style="background: #161b22; padding: 10px; border-radius: 4px; margin-top: 8px; white-space: pre-wrap;">${escapeHtml(r.review)}</pre>
+                        </div>
+                    `).join('');
+                    
+                    result.innerHTML = `
+                        <h4>Review: ${escapeHtml(data.pr_title)}</h4>
+                        <p><strong>Focus:</strong> ${focus}</p>
+                        ${reviewsHtml}
+                        <a href="${data.url}" target="_blank" style="color: #58a6ff;">View on GitHub</a>
+                    `;
+                }
+                result.style.display = 'block';
+            } catch (error) {
+                result.innerHTML = `<strong>Connection error:</strong> ${error.message}`;
+                result.style.display = 'block';
+            }
+
+            btn.disabled = false;
+            loading.classList.remove('active');
+        }
+
+        async function generateCommitMessage() {
+            const diff = document.getElementById('commit-diff').value.trim();
+            const btn = document.getElementById('commit-btn');
+            const loading = document.getElementById('commit-loading');
+            const result = document.getElementById('commit-result');
+
+            if (!diff) {
+                alert('Please paste a git diff');
+                return;
+            }
+
+            btn.disabled = true;
+            loading.classList.add('active');
+            result.style.display = 'none';
+
+            try {
+                const response = await fetch('/github/commit-message', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ diff: diff })
+                });
+
+                const data = await response.json();
+
+                if (data.error) {
+                    result.value = `Error: ${data.error}`;
+                } else {
+                    result.value = data.commit_message;
+                }
+                result.style.display = 'block';
+            } catch (error) {
+                result.value = `Connection error: ${error.message}`;
+                result.style.display = 'block';
+            }
+
+            btn.disabled = false;
+            loading.classList.remove('active');
+        }
+
+        async function analyzeIssue() {
+            const repo = document.getElementById('issue-repo').value.trim();
+            const issueNumber = document.getElementById('issue-number').value.trim();
+            const token = document.getElementById('github-token').value.trim();
+            const btn = document.getElementById('issue-btn');
+            const loading = document.getElementById('issue-loading');
+            const result = document.getElementById('issue-result');
+
+            if (!repo || !issueNumber) {
+                alert('Please enter repository and issue number');
+                return;
+            }
+
+            btn.disabled = true;
+            loading.classList.add('active');
+            result.style.display = 'none';
+
+            try {
+                const response = await fetch('/github/issue-analysis', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        repo: repo,
+                        issue_number: parseInt(issueNumber),
+                        token: token || null
+                    })
+                });
+
+                const data = await response.json();
+
+                if (data.error) {
+                    result.innerHTML = `<strong>Error:</strong> ${data.error}`;
+                } else {
+                    result.innerHTML = `
+                        <h4>${escapeHtml(data.title)}</h4>
+                        <p><strong>Status:</strong> ${data.state} | <strong>Labels:</strong> ${data.labels.join(', ')}</p>
+                        <h5>AI Analysis:</h5>
+                        <pre style="background: #161b22; padding: 1rem; border-radius: 6px; white-space: pre-wrap;">${escapeHtml(data.analysis)}</pre>
+                        <a href="${data.url}" target="_blank" style="color: #58a6ff;">View on GitHub</a>
+                    `;
+                }
+                result.style.display = 'block';
+            } catch (error) {
+                result.innerHTML = `<strong>Connection error:</strong> ${error.message}`;
+                result.style.display = 'block';
+            }
+
+            btn.disabled = false;
+            loading.classList.remove('active');
+        }
+
+        async function githubCodeSuggestions() {
+            const repo = await prompt('Enter GitHub repo (owner/repo):');
+            if (!repo) return;
+            
+            const prNumber = await prompt('Enter PR number:');
+            if (!prNumber) return;
+            
+            try {
+                const response = await fetch('/github/code-suggestions', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        repo: repo,
+                        pr_number: parseInt(prNumber),
+                        token: ''
+                    })
+                });
+
+                const data = await response.json();
+                if (!data.error) {
+                    alert(`Analyzed ${data.suggestions.length} file(s). Check your terminal for results.`);
+                }
+            } catch (err) {
+                alert('Error: ' + err.message);
+            }
+        }
+
+        async function enhancedIssueAnalysis() {
+            const repo = await prompt('Enter GitHub repo (owner/repo):');
+            if (!repo) return;
+            
+            const issueNumber = await prompt('Enter issue number:');
+            if (!issueNumber) return;
+            
+            try {
+                const response = await fetch('/github/enhanced-issue-analysis', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        repo: repo,
+                        issue_number: parseInt(issueNumber),
+                        token: ''
+                    })
+                });
+
+                const data = await response.json();
+                if (!data.error) {
+                    alert(`${data.issue_type.charAt(0).toUpperCase() + data.issue_type.slice(1)} Analysis:\n\n${data.estimated_complexity} complexity\n${data.suggestions.length} automation ideas`);
+                }
+            } catch (err) {
+                alert('Error: ' + err.message);
+            }
+        }
+        
+        // Allow Enter to send in chat (Shift+Enter for newline)
+        document.getElementById('chat-input').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                sendChatMessage();
+            }
+        });
+        
+        // Add welcome message
+        addChatMessage('assistant', 'Hello! I\'m the Vincent Copilot Assistant. I can help you with code completion, explanations, refactoring, test generation, and bug fixing. How can I assist you today?');
+    </script>
+</body>
+</html>
